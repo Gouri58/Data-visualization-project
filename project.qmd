@@ -1,0 +1,156 @@
+---
+title: "Data Visualisation Project"
+author: "Prasad Kusumanti"
+project: "olympics athlete" 
+editor: visual
+---
+```{r, message=FALSE, warning=FALSE}
+library(dplyr) 
+```
+
+```{r}
+#| echo: false
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+olympics <- read_csv("olympics.csv", show_col_types = FALSE)
+```
+
+# Dataset
+
+| Variable | Class | Description |
+|----------|-------|-------------|
+| `id` | double | Athlete ID |
+| `name` | character | Athlete Name |
+| `sex` | character | Athlete Sex |
+| `age` | double | Athlete Age |
+| `height` | double | Athlete Height in cm |
+| `weight` | double | Athlete weight in kg |
+| `team` | character | Country/Team competing for |
+| `noc` | character | NOC region |
+| `games` | character | Olympic games name |
+| `year` | double | Year of Olympics |
+| `season` | character | Season (either winter or summer) |
+| `city` | character | City of Olympic host |
+| `sport` | character | Sport |
+| `event` | character | Specific event |
+| `medal` | character | Medal (Gold, Silver, Bronze, or NA) |
+
+## Athlete Participation in Selected Sports
+```{r}
+selected_sports <- c("Swimming", "Gymnastics", "Wrestling", "Football", "Hockey", "Boxing", "Badminton", "Archery")
+filtered_data <- olympics %>% filter(sport %in% selected_sports)
+ggplot(filtered_data, aes(y = reorder(sport, -table(sport)[sport]))) +
+  geom_bar(fill = "blue") +
+  labs(title = "Athlete Participation in Selected Sports", 
+       x = "Number of Athletes", y = "Sport") +
+  theme_minimal()
+```
+#Height vs Weight of Athletes by Sport
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+selected_sports <- c("Swimming", "Gymnastics", "Wrestling", "Football", "Hockey", "Boxing", "Badminton", "Archery")
+filtered_data <- olympics %>%
+  filter(sport %in% selected_sports) %>%
+  filter(!is.na(height), !is.na(weight), height > 0, weight > 0)
+ggplot(filtered_data, aes(x = height, y = weight, color = sport)) +
+  geom_point(alpha = 0.6) +
+  labs(
+    title = "Height vs Weight of Athletes by Sport",
+    x = "Height (cm)",
+    y = "Weight (kg)",
+    color = "Sport"
+  ) +
+  theme_minimal() +
+  facet_wrap(~ sport, scales = "free")  
+```
+#Gender Representation in Selected Sports
+```{r}
+ggplot(filtered_data, aes(x = sport, fill = sex)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Gender Representation in Selected Sports", 
+       x = "Sport", y = "Number of Athletes", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+#Top Sports Played by Most Females
+```{r}
+female_sports <- olympics %>%
+  filter(sex == "F") %>%
+  count(sport, name = "female_count") %>%
+  arrange(desc(female_count)) %>%
+  head(15) %>%
+  filter(sport != first(sport)) 
+
+ggplot(female_sports, aes(x = reorder(sport, -female_count), y = female_count)) +
+  geom_bar(stat = "identity", fill = "orange") + 
+  labs(title = "Top Sports Played by Most Females", 
+       x = "Sport", y = "Number of Female Athletes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+#Top Sports with Highest Medal-Winning Countries
+```{r}
+team_medals <- olympics %>%
+  filter(!is.na(medal)) %>%
+  group_by(noc, sport) %>%
+  summarise(medal_count = n(), .groups = "drop") %>%
+  arrange(sport, desc(medal_count))
+
+top_teams_per_sport <- team_medals %>%
+  group_by(sport) %>%
+  slice_max(medal_count, n = 1) %>%
+  ungroup()
+
+top_teams_per_sport <- top_teams_per_sport %>%
+  filter(sport != "Athletics") %>%
+  arrange(desc(medal_count)) %>%
+  head(10)
+
+ggplot(top_teams_per_sport, aes(x = reorder(sport, -medal_count), y = medal_count, fill = noc)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top Sports with Highest Medal-Winning Countries", 
+       x = "Sport", y = "Medal Count", fill = "Country") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+#Total Medals by Country and Sport in Selected Sports
+```{r}
+library(dplyr)
+library(ggplot2)
+
+selected_sports <- c("Swimming", "Gymnastics", "Wrestling", "Football", "Hockey", "Boxing", "Badminton", "Archery")
+medals_by_country_sport <- olympics %>%
+  filter(sport %in% selected_sports, !is.na(medal)) %>%
+  group_by(noc, sport) %>%
+  summarise(total_medals = n(), .groups = "drop") %>%
+  arrange(desc(total_medals))
+top_countries <- medals_by_country_sport %>%
+  group_by(noc) %>%
+  summarise(total_medals = sum(total_medals), .groups = "drop") %>%
+  arrange(desc(total_medals)) %>%
+  head(10) %>%
+  pull(noc)
+filtered_data <- medals_by_country_sport %>%
+  filter(noc %in% top_countries)
+ggplot(filtered_data, aes(x = noc, y = total_medals, fill = sport)) +
+  geom_bar(stat = "identity", position = "stack", color = "black") +
+  labs(
+    title = "Total Medals by Country and Sport in Selected Sports",
+    x = "Country",
+    y = "Total Medals",
+    fill = "Sport"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_viridis_d()
+```
